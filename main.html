@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" href="emoedu_icon.png" type="image/png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección de Expresiones Faciales</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #video-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            margin: 20px auto;
+            border: 5px solid #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+        }
+        #video {
+            transform: scaleX(-1);  /* Modo espejo */
+            width: 100%;
+            height: 100%;
+        }
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #log-container {
+            width: 640px;
+            height: 200px;
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: scroll;
+            font-family: monospace;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            font-size: 1.5em;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+    <header style="text-align: center; margin-bottom: 20px;">
+        <br>
+        <h1 style="font-size: 2.5em; margin: 0;">Emoedu</h1>
+        <p style="font-size: 1em; color: #b0b0b0; margin: 5px 0;">Sistema de Detección de Emociones en Aulas</p>
+    </header>
+    <div id="video-container">
+        <video id="video" autoplay></video>
+        <canvas id="canvas-overlay"></canvas>
+    </div>
+    <div id="log-container"></div>
+    <script>
+        const videoElement = document.getElementById('video');
+        const canvasOverlay = document.getElementById('canvas-overlay');
+        const ctxOverlay = canvasOverlay.getContext('2d');
+        const logContainer = document.getElementById('log-container');
+
+        // Solicitamos acceso a la cámara del usuario
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                videoElement.srcObject = stream;
+                videoElement.addEventListener('loadedmetadata', () => {
+                    canvasOverlay.width = videoElement.videoWidth;
+                    canvasOverlay.height = videoElement.videoHeight;
+
+                    setInterval(() => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = videoElement.videoWidth;
+                        canvas.height = videoElement.videoHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                        // Convertimos el frame a una imagen en base64
+                        const frameData = canvas.toDataURL('image/jpeg');
+
+                        // Enviamos la imagen al backend
+                        fetch('http://localhost:5000/Emoedu/detect', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ image: frameData })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            ctxOverlay.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+                            if (data.faces && data.faces.length > 0) {
+                                logContainer.innerHTML = data.faces.map((face, index) => {
+                                    ctxOverlay.strokeStyle = 'red';
+                                    ctxOverlay.lineWidth = 3;
+                                    ctxOverlay.strokeRect(face.x, face.y, face.width, face.height);
+                                    ctxOverlay.fillStyle = 'red';
+                                    ctxOverlay.font = '20px Arial';
+                                    const emotionTranslated = {
+                                        'angry': 'enojado',
+                                        'disgust': 'disgusto',
+                                        'fear': 'miedo',
+                                        'happy': 'feliz',
+                                        'sad': 'triste',
+                                        'surprise': 'sorpresa',
+                                        'neutral': 'neutral'
+                                    }[face.emotion] || face.emotion;
+                                    ctxOverlay.fillText(`Alumno ${index + 1}: ${emotionTranslated}`, face.x, face.y - 10);
+                                    return `<strong>Alumno ${index + 1}: ${emotionTranslated.toUpperCase()}</strong>`;
+                                }).join('<br>');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error al enviar el frame al backend:', error);
+                            logContainer.innerHTML = `<strong>ERROR: ${error}</strong><br>`;
+                            logContainer.scrollTop = logContainer.scrollHeight;
+                        });
+                    }, 1000); // Enviar un frame cada 1 segundo
+                });
+            })
+            .catch((error) => {
+                console.error("Error al acceder a la cámara: ", error);
+                logContainer.innerHTML = `<strong>ERROR AL ACCEDER A LA CÁMARA: ${error}</strong><br>`;
+                logContainer.scrollTop = logContainer.scrollHeight;
+            });
+    </script>
+</body>
+</html>
