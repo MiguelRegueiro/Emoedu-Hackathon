@@ -43,6 +43,12 @@ Emoedu es una innovadora aplicación diseñada para detectar las emociones de lo
 
 3. **Visualización en Tiempo Real**: Las emociones detectadas se mostrarán sobre los rostros de los estudiantes, permitiendo una evaluación constante del estado emocional del aula.
 
+## 🎥 **Demo Video**
+
+Watch Emoedu in action! This demo showcases real-time emotion detection and the user interface.
+
+[![Emoedu Demo](./demo/EmoeduDemo.mp4)](./demo/EmoeduDemo.mp4)
+
 ## 🖼️ **Captura de Pantalla**
 
 ¡Aquí te mostramos cómo luce Emoedu en acción! 😄
